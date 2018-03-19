@@ -1,2 +1,3 @@
 python-firebase==1.2
-Flask==0.12flask-cors
+Flask==0.12
+flask-cors
