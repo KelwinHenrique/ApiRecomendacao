@@ -1,6 +1,7 @@
 from firebase import firebase
 import math
 from flask import Flask, jsonify, request
+from flask_cors import CORS, cross_origin
 import os
 
 
@@ -10,16 +11,6 @@ avaliacoesFirebase = firebase.get('/Avaliacoes', None)
 
 #print(filmes[0]["ano"])
 avaliacoes = {}
-for usuario in avaliacoesFirebase:
-	idUsuario = usuario
-	avaliacoesUserX = {}
-	dic = avaliacoesFirebase[usuario]
-	for avaliacao in dic:
-		idFilme = avaliacao
-		notaFilme = dic[idFilme]["avaliacao"]
-		avaliacoesUserX[idFilme] = int(notaFilme)
-	avaliacoes[idUsuario] = avaliacoesUserX
-
 
 def euclidiana(usuario1, usuario2):
     s1 = {}
@@ -39,30 +30,52 @@ def getSimilares(usuario):
     return similiaridade
 
 def getRecomendacoes(usuario):
+    atualiza()
     totais = {}
     somaSimilaridade = {}
     for outro in avaliacoes:
         if outro == usuario: continue
         similaridade = euclidiana(usuario, outro)
-
         if similaridade <= 0: continue
         for item in avaliacoes[outro]:
             if item not in avaliacoes[usuario]:
-                totais.setdefault(item, 0)
-                totais[item] += avaliacoes[outro][item] * similaridade
-                somaSimilaridade.setdefault(item,0)
+                totais.setdefault(item, 0.0)
+                totais[item] += float(avaliacoes[outro][item]) * similaridade
+                somaSimilaridade.setdefault(item,0.0)
                 somaSimilaridade[item] += similaridade
-
-    rankings =  [(total/ somaSimilaridade[item], item) for item, total in totais.items()]
+    rankings =  [(total/somaSimilaridade[item], item) for item, total in totais.items()]
     rankings.sort()
     rankings.reverse()
     return rankings
 
+def atualiza():
+    global  avaliacoesFirebase
+    avaliacoesFirebase = firebase.get('/Avaliacoes', None)
+    global avaliacoes
+    avaliacoes = {}
+    for usuario in avaliacoesFirebase:
+        idUsuario = usuario
+        avaliacoesUserX = {}
+        dic = avaliacoesFirebase[usuario]
+        for avaliacao in dic:
+            idFilme = avaliacao
+            notaFilme = dic[idFilme]["avaliacao"]
+            avaliacoesUserX[idFilme] = int(notaFilme)
+        avaliacoes[idUsuario] = avaliacoesUserX
+
 app = Flask(__name__)
+cors = CORS(app)
+app.config['CORS_HEADERS'] = 'Content-Type'
+
+@app.route('/atualizaBanco', methods=['GET'])
+def atualizaBanco():
+    return "ok"
+
+
 @app.route('/indicados/<id>', methods=['GET'])
+@cross_origin()
 def getIndicados(id):
 	indicados = getRecomendacoes(id)
-	print(indicados)
 	indicacoes = []
 	for filme in indicados:
 		indicado = {"idFilme": filme[1], "possivelNotaFilme":filme[0]}
