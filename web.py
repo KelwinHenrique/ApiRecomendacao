@@ -16,21 +16,21 @@ def euclidiana(usuario1, usuario2):
     s1 = {}
     for item in avaliacoes[usuario1]:
         if item in avaliacoes[usuario2]: s1[item] = 1
-
     if len(s1) == 0 : return 0
 
     soma = sum([pow(avaliacoes[usuario1][item] - avaliacoes[usuario2][item],2) for item in avaliacoes[usuario1] if item in avaliacoes[usuario2]])
     return 1/(1 + math.sqrt(soma))
 
-def getSimilares(usuario):
+def getSimilares(tabela, usuario):
+    atualiza(tabela)
     similiaridade = [(euclidiana(usuario, outro), outro) 
                     for outro in avaliacoes if outro != usuario]
     similiaridade.sort()
     similiaridade.reverse()
     return similiaridade
 
-def getRecomendacoes(usuario):
-    atualiza()
+def getRecomendacoes(usuario, tabela):
+    atualiza(tabela)
     totais = {}
     somaSimilaridade = {}
     for outro in avaliacoes:
@@ -48,9 +48,9 @@ def getRecomendacoes(usuario):
     rankings.reverse()
     return rankings
 
-def atualiza():
+def atualiza(tabela):
     global  avaliacoesFirebase
-    avaliacoesFirebase = firebase.get('/Avaliacoes', None)
+    avaliacoesFirebase = firebase.get(tabela, None)
     global avaliacoes
     avaliacoes = {}
     for usuario in avaliacoesFirebase:
@@ -75,7 +75,18 @@ def atualizaBanco():
 @app.route('/indicados/<id>', methods=['GET'])
 @cross_origin()
 def getIndicados(id):
-	indicados = getRecomendacoes(id)
+	indicados = getRecomendacoes(id, '/Avaliacoes')
+	indicacoes = []
+	for filme in indicados:
+		indicado = {"idFilme": filme[1], "possivelNotaFilme":filme[0]}
+		indicacoes = indicacoes + [indicado]
+	return jsonify(indicacoes)
+
+
+@app.route('/filmesParecidos/<id>', methods=['GET'])
+@cross_origin()
+def filmesParecidos(id):
+	indicados = getSimilares("/AvaliacoesFilmes", id)
 	indicacoes = []
 	for filme in indicados:
 		indicado = {"idFilme": filme[1], "possivelNotaFilme":filme[0]}
